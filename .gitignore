@@ -16,3 +16,6 @@ mlartifacts/*
 
 # Secrets
 .env
+
+# Data
+data/*

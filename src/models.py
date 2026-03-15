@@ -1,66 +1,79 @@
-import mlflow
-import os
-from pydantic import BaseModel
+import xgboost as xgb
 import pandas as pd
+from pathlib import Path
 
+MODELS_DIR = Path(__file__).parent / "models"
 
-mlflow.set_experiment("Reco Agricole")
-mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
+VALID_CROPS = {"Wheat", "Rice", "Maize"}
+
+FIELD_TYPES: dict[str, type | tuple] = {
+    "rain (mm)":         (int, float),
+    "temp (C)":          (int, float),
+    "Year":              int,
+    "pesticides_tonnes": (int, float),
+    "Area":              str,
+    "Days_to_Harvest":   int,
+    "Irrigation_Used":   bool,
+    "Fertilizer_Used":   bool,
+    "Soil_Type":         str,
+}
+
 
 class Models:
-    def __init__(self, paths: dict):
-        if not set(paths.keys()) == set(["Wheat", "Rice", "Maize"]):
-            raise ValueError(
-                "Model paths must be a dictionary with keys 'Wheat', 'Rice', and 'Maize'"
-            )
-        
-        self.Wheat = mlflow.xgboost.load_model(paths["Wheat"])
-        self.Rice = mlflow.xgboost.load_model(paths["Rice"])
-        self.Maize = mlflow.xgboost.load_model(paths["Maize"])
+    def __init__(self, models_dir: Path = MODELS_DIR):
+        self.Wheat = self._load(models_dir / "wheat_model.json")
+        self.Rice  = self._load(models_dir / "rice_model.json")
+        self.Maize = self._load(models_dir / "maize_model.json")
 
-    def predict(self, crop: str, raw_data: dict):
-        if not set(raw_data.keys()) == set(["rain (mm)", "temp (C)", "Year", "pesticides_tonnes", "Area", "Days_to_Harvest", "Irrigation_Used", "Fertilizer_Used", "Soil_Type"]):
-            raise ValueError(
-                "Data must be a dictionary with keys 'rain (mm)', 'temp (C)', 'Year', 'pesticides_tonnes', 'Area', 'Days_to_Harvest', 'Irrigation_Used', 'Fertilizer_Used', 'Soil_Type'"
-            )
-        
+    @staticmethod
+    def _load(path: Path) -> xgb.Booster:
+        model = xgb.Booster()
+        model.load_model(path)
+        return model
+
+    def _validate(self, raw_data: dict):
+        expected = set(FIELD_TYPES.keys())
+        received = set(raw_data.keys())
+
+        missing = expected - received
+        extra   = received - expected
+        if missing or extra:
+            raise ValueError(f"Invalid fields – missing: {missing}, unexpected: {extra}")
+
+        for field, expected_type in FIELD_TYPES.items():
+            value = raw_data[field]
+            # bool is a subclass of int, so check bool fields strictly before numeric ones
+            if expected_type is bool:
+                if not isinstance(value, bool):
+                    raise TypeError(
+                        f"Field '{field}' must be bool, got {type(value).__name__}"
+                    )
+            elif not isinstance(value, expected_type):
+                raise TypeError(
+                    f"Field '{field}' must be {expected_type}, got {type(value).__name__}"
+                )
+
+    def predict(self, crop: str, raw_data: dict) -> dict:
+        if crop not in VALID_CROPS:
+            raise ValueError(f"Crop must be one of {VALID_CROPS}, got '{crop}'")
+
+        self._validate(raw_data)
+        data = self.transform_data(raw_data)
+        model = getattr(self, crop)
+        return {"yield": float(model.predict(xgb.DMatrix(pd.DataFrame([data])))[0])}
+
+    def recommend(self, raw_data: dict) -> dict:
+        self._validate(raw_data)
         data = self.transform_data(raw_data)
 
-        if crop == "Wheat":
-            yield_pred = self.Wheat.predict(pd.DataFrame([data]))[0]
-            return {"yield": float(yield_pred)}
-        elif crop == "Rice":
-            yield_pred = self.Rice.predict(pd.DataFrame([data]))[0]
-            return {"yield": float(yield_pred)}
-        elif crop == "Maize":
-            yield_pred = self.Maize.predict(pd.DataFrame([data]))[0]
-            return {"yield": float(yield_pred)}
-        else:
-            raise ValueError("Crop must be 'Wheat', 'Rice', or 'Maize'")
-    
-    def recommend(self, raw_data: dict):
-        if not set(raw_data.keys()) == set(["rain (mm)", "temp (C)", "Year", "pesticides_tonnes", "Area", "Days_to_Harvest", "Irrigation_Used", "Fertilizer_Used", "Soil_Type"]):
-            raise ValueError(
-                "Data must be a dictionary with keys 'rain (mm)', 'temp (C)', 'Year', 'pesticides_tonnes', 'Area', 'Days_to_Harvest', 'Irrigation_Used', 'Fertilizer_Used', 'Soil_Type'"
-            )
-        
-        data = self.transform_data(raw_data)
-        
-        wheat_yield = float(self.Wheat.predict(pd.DataFrame([data]))[0])
-        rice_yield = float(self.Rice.predict(pd.DataFrame([data]))[0])
-        maize_yield = float(self.Maize.predict(pd.DataFrame([data]))[0])
+        yields = {
+            crop: float(getattr(self, crop).predict(xgb.DMatrix(pd.DataFrame([data])))[0])
+            for crop in VALID_CROPS
+        }
+        best = max(yields, key=yields.get)
+        return {"item": best, "yield": yields[best]}
 
-
-        # Returns the item that gives the highest yield
-        if wheat_yield > rice_yield and wheat_yield > maize_yield:
-            return {"item": "Wheat", "yield": wheat_yield}
-        elif rice_yield > maize_yield:
-            return {"item": "Rice", "yield": rice_yield}
-        else:
-            return {"item": "Maize", "yield": maize_yield}
-
-    def transform_data(self, input_dict: dict):
-        # Define all possible countries and soil types
+    def transform_data(self, input_dict: dict) -> dict:
         countries = [
             'Algeria', 'Angola', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan',
             'Bahamas', 'Bangladesh', 'Belarus', 'Belgium', 'Botswana', 'Brazil', 'Bulgaria',
@@ -74,48 +87,32 @@ class Models:
             'Nicaragua', 'Niger', 'Norway', 'Pakistan', 'Papua New Guinea', 'Peru', 'Poland', 'Portugal',
             'Qatar', 'Romania', 'Rwanda', 'Saudi Arabia', 'Senegal', 'Slovenia', 'South Africa', 'Spain',
             'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Tajikistan', 'Thailand', 'Tunisia',
-            'Turkey', 'Uganda', 'Ukraine', 'United Kingdom', 'Uruguay', 'Zambia', 'Zimbabwe'
+            'Turkey', 'Uganda', 'Ukraine', 'United Kingdom', 'Uruguay', 'Zambia', 'Zimbabwe',
         ]
-
         soil_types = ['Clay', 'Loam', 'Peaty', 'Sandy', 'Silt']
 
-        # Initialize the output dictionary with default values
         output_dict = {
-            'rain (mm)': input_dict.get('rain (mm)'),
-            'temp (C)': input_dict.get('temp (C)'),
-            'Year': input_dict.get('Year'),
-            'pesticides_tonnes': input_dict.get('pesticides_tonnes'),
-            'Days_to_Harvest': input_dict.get('Days_to_Harvest'),
-            'Irrigation_Used': int(input_dict.get('Irrigation_Used', 0)),
-            'Fertilizer_Used': int(input_dict.get('Fertilizer_Used', 0)),
+            'rain (mm)':         input_dict['rain (mm)'],
+            'temp (C)':          input_dict['temp (C)'],
+            'Year':              input_dict['Year'],
+            'pesticides_tonnes': input_dict['pesticides_tonnes'],
+            'Days_to_Harvest':   input_dict['Days_to_Harvest'],
+            'Irrigation_Used':   int(input_dict['Irrigation_Used']),
+            'Fertilizer_Used':   int(input_dict['Fertilizer_Used']),
         }
 
-        # Set all Area_Country fields to 0 by default
         for country in countries:
             output_dict[f'Area_{country}'] = 0
-
-        # Set all Soil_Type fields to 0 by default
         for soil in soil_types:
             output_dict[f'Soil_Type_{soil}'] = 0
 
-        # Set the correct Area_Country field to 1
-        if 'Area' in input_dict:
-            country = input_dict['Area']
-            output_dict[f'Area_{country}'] = 1
+        output_dict[f'Area_{input_dict["Area"]}'] = 1
+        output_dict[f'Soil_Type_{input_dict["Soil_Type"]}'] = 1
 
-        # Set the correct Soil_Type field to 1
-        if 'Soil_Type' in input_dict:
-            soil = input_dict['Soil_Type']
-            output_dict[f'Soil_Type_{soil}'] = 1
-
-        # Reorder the columns to match the model's expected order
         expected_order = [
             'rain (mm)', 'temp (C)', 'Year', 'pesticides_tonnes', 'Days_to_Harvest',
             'Irrigation_Used', 'Fertilizer_Used', 'Soil_Type_Clay', 'Soil_Type_Loam',
-            'Soil_Type_Peaty', 'Soil_Type_Sandy', 'Soil_Type_Silt'
-        ] + [f'Area_{country}' for country in countries]
+            'Soil_Type_Peaty', 'Soil_Type_Sandy', 'Soil_Type_Silt',
+        ] + [f'Area_{c}' for c in countries]
 
-        # Create a new dictionary with the correct order
-        ordered_dict = {key: output_dict[key] for key in expected_order}
-
-        return ordered_dict
+        return {key: output_dict[key] for key in expected_order}

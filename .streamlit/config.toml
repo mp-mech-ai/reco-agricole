@@ -1,0 +1,24 @@
+[theme]
+base          = "light"
+font          = "DM Sans:https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap, sans-serif"
+headingFont   = "Playfair Display:https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap, serif"
+baseFontSize  = 15
+buttonRadius  = "full"
+baseRadius    = "0.375rem"
+showWidgetBorder = true
+
+[theme.light]
+primaryColor             = "#2d6a1f"
+secondaryColor           = "#a06b10" 
+backgroundColor          = "#f5f0e8"
+secondaryBackgroundColor = "#edeae0"
+textColor                = "#1c2e14"
+borderColor              = "#b8cca0"
+
+[theme.dark]
+primaryColor             = "#5aaa38"
+secondaryColor           = "#e8a030"
+backgroundColor          = "#141a0f"
+secondaryBackgroundColor = "#111d12"
+textColor                = "#cce8b0"
+borderColor              = "#1e3c18"

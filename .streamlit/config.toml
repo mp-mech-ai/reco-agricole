@@ -3,8 +3,6 @@ base          = "light"
 font          = "DM Sans:https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap, sans-serif"
 headingFont   = "Playfair Display:https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap, serif"
 baseFontSize  = 15
-buttonRadius  = "full"
-baseRadius    = "0.375rem"
 showWidgetBorder = true
 
 [theme.light]

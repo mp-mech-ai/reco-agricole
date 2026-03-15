@@ -2,8 +2,9 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.io as pio
+import os
 
-API_URL = "http://localhost:8000"
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 COUNTRIES = sorted([
     'Algeria', 'Angola', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan',

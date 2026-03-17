@@ -134,8 +134,7 @@ class Models:
             crop: float(getattr(self, crop).predict(xgb.DMatrix(pd.DataFrame([data])))[0])
             for crop in VALID_CROPS
         }
-        best = max(yields, key=yields.get)
-        return {"item": best, "yield": yields[best]}
+        return yields
 
     def transform_data(self, input_dict: dict) -> dict:
         output_dict = {

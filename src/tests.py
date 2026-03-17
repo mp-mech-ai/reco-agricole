@@ -14,6 +14,7 @@ VALID_DATA = {
     "Soil_Type": "Silt",
 }
 
+VALID_CROPS = {"Wheat", "Rice", "Maize"}
 
 def make_mock_booster(return_value: float = 5000.0):
     booster = MagicMock()
@@ -23,7 +24,7 @@ def make_mock_booster(return_value: float = 5000.0):
 
 @pytest.fixture()
 def client():
-    with patch("models.Models._load", return_value=make_mock_booster()):
+    with patch("models_store.Models._load", return_value=make_mock_booster()):
         from api import app
         with TestClient(app) as c:
             yield c
@@ -114,9 +115,8 @@ def test_recommend_returns_item_and_yield(client):
     response = client.post("/recommend", json={"data": VALID_DATA})
     assert response.status_code == 200
     body = response.json()
-    assert "item" in body and "yield" in body
-    assert body["item"] in ("Rice", "Wheat", "Maize")
-    assert isinstance(body["yield"], float)
+    assert VALID_CROPS == set(body.keys())
+    assert isinstance(body["Wheat"], float)
 
 
 # ---------------------------------------------------------------------------

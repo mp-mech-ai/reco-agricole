@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from models import Models
+from models_store import Models
 
 
 @asynccontextmanager
@@ -40,6 +40,12 @@ async def predict(payload: PredictPayload):
     except (TypeError, ValueError) as e:
         return JSONResponse(status_code=422, content={"error": str(e)})
 
+@app.post("/predict_and_explain")
+async def predict_and_explain(payload: PredictPayload):
+    try: 
+        return app.state.models.predict_and_explain(payload.crop, payload.data)
+    except (TypeError, ValueError) as e:
+        return JSONResponse(status_code=422, content={"error": str(e)})
 
 @app.post("/recommend")
 async def recommend(payload: RecommendPayload):

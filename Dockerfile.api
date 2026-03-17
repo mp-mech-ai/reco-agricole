@@ -9,7 +9,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-COPY src/api.py src/models.py ./
+COPY src/api.py src/models_store.py ./
 COPY src/models ./models
 
 EXPOSE 8000

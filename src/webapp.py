@@ -99,19 +99,16 @@ def build_data(rain, temp, year, pest, area, days, irr, fert, soil) -> dict:
 
 def call_predict(crop: str, data: dict):
     try:
-        return requests.post(f"{API_URL}/predict", json={"crop": crop, "data": data}, timeout=10).json()
+        return requests.post(f"{API_URL}/predict_and_explain", json={"crop": crop, "data": data}, timeout=10).json()
     except requests.exceptions.ConnectionError:
         return {"error": f"Cannot reach API at {API_URL}"}
 
 def call_recommend(data: dict) -> dict:
     """Call predict for all crops and return a dict of {crop: yield}."""
-    results = {}
-    for crop in CROPS:
-        r = call_predict(crop, data)
-        if "error" in r:
-            return r
-        results[crop] = r["yield"]
-    return results
+    try: 
+        return requests.post(f"{API_URL}/recommend", json={"data": data}, timeout=10).json()
+    except requests.exceptions.ConnectionError:
+        return {"error": f"Cannot reach API at {API_URL}"}
 
 def render_predict_result(crop: str, result: dict):
     if "error" in result:
@@ -121,6 +118,39 @@ def render_predict_result(crop: str, result: dict):
             label=f"{CROP_EMOJI.get(crop, '')} {crop} — estimated yield",
             value=f"{result['yield']:,.2f} hg/ha",
         )
+
+def render_explain_result(crop: str, result: dict):
+    if "error" in result:
+        st.markdown(f'<div class="error-card">⚠ {result["error"]}</div>', unsafe_allow_html=True)
+    else:
+        shap_vals = result["shap_values"]  # {"Area": 0.42, "Soil_Type": -0.18, ...}
+        base_val  = result["base_value"]
+        raw_data  = result["raw_data"]
+
+        # Sort by absolute impact for readability
+        sorted_items = sorted(shap_vals.items(), key=lambda x: abs(x[1]))
+        features, values = zip(*sorted_items)
+
+        # "Area = France", "Soil_Type = Clay", "Year = 2023" ...
+        labels = [f"{f} = {raw_data.get(f, '')}" for f in features]
+
+        fig = go.Figure(go.Waterfall(
+            orientation="h",
+            measure=["relative"] * len(values),
+            y=labels,
+            x=list(values) + [sum(values)],
+            base=base_val,
+            connector={"line": {"color": "lightgrey"}},
+            increasing={"marker": {"color": "#3182bd"}},
+            decreasing={"marker": {"color": "#d9534f"}},
+        ))
+        fig.update_layout(
+            xaxis_title="SHAP value (impact on predicted yield)",
+            waterfallgap=0.4,
+            height=500,
+            margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        )
+        st.plotly_chart(fig, use_container_width=True, theme="streamlit")
 
 def render_recommend_result(yields: dict):
     if "error" in yields:
@@ -167,16 +197,16 @@ def render_recommend_result(yields: dict):
         bargap=0.35,
     )
 
-    st.markdown(
-        f"**Best choice: {CROP_EMOJI[best_crop]} {best_crop}** — "
-        f"`{yields[best_crop]:,.2f} hg/ha`"
-    )
+    st.metric(
+            label=f"Best choice: {CROP_EMOJI[best_crop]} {best_crop}",
+            value=f"{yields[best_crop]:,.2f} hg/ha",
+        )
     st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme="streamlit")
 
 # ── Layout ─────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div style="padding-bottom: 10px;">
-    <div class="dashboard-title">🌱 Recommandation Agricole</div>
+    <div class="dashboard-title">🌱 Agricultural recommendation </div>
     <div class="dashboard-subtitle">Yield prediction & crop recommendation engine</div>
 </div>
 """, unsafe_allow_html=True)
@@ -219,6 +249,8 @@ with col_results:
             with st.spinner("Calling prediction model…"):
                 result = call_predict(crop, data)
             render_predict_result(crop, result)
+            st.markdown('<div class="section-label">SHAP explanation</div>', unsafe_allow_html=True)
+            render_explain_result(crop, result)
 
         if run_recommend:
             with st.spinner("Evaluating all crops…"):

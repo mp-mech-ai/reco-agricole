@@ -30,11 +30,11 @@ st.set_page_config(page_title="Agri-Reco", layout="wide", page_icon="🌱")
 st.markdown("""
 <style>
 /* ── Viewport lock + flex chain ── */
-html, body { height: 100vh; overflow: hidden; margin: 0; padding: 0; }
-.stApp { height: 100vh; overflow: hidden; }
+html, body { height: 100%; margin: 0; padding: 0; }
+.stApp { height: 100%; }
 
-[data-testid="stAppViewContainer"] { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-[data-testid="stMain"]             { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+[data-testid="stAppViewContainer"] { height: 100%; display: flex; flex-direction: column; }
+[data-testid="stMain"] { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
 [data-testid="stMainBlockContainer"] {
     flex: 1; min-height: 0; overflow: hidden;
     display: flex !important; flex-direction: column !important;
@@ -150,7 +150,7 @@ def render_explain_result(crop: str, result: dict):
             height=500,
             margin={"l": 0, "r": 0, "t": 0, "b": 0},
         )
-        st.plotly_chart(fig, use_container_width=True, theme="streamlit")
+        st.plotly_chart(fig, width="stretch", theme="streamlit")
 
 def render_recommend_result(yields: dict):
     if "error" in yields:

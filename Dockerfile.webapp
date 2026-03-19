@@ -8,7 +8,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 COPY src/webapp.py ./
-COPY .streamlit/ ./
+COPY .streamlit/ .streamlit/
 
 EXPOSE 8501
 

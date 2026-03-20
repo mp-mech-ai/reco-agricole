@@ -76,3 +76,23 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down
+
+  deploy:
+    name: Trigger Dockhand deployment
+    runs-on: ubuntu-latest
+    needs: smoke-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger webhook
+        env:
+          SECRET: ${{ secrets.DOCKHAND_WEBHOOK_SECRET }}
+          WEBHOOK_URL: ${{ secrets.DOCKHAND_WEBHOOK_URL }}
+        run: |
+          PAYLOAD='{}'
+          SIGNATURE="sha256=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print $NF}')"
+          curl --fail --max-time 10 \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --header "X-Hub-Signature-256: $SIGNATURE" \
+            --data "$PAYLOAD" \
+            "$WEBHOOK_URL"

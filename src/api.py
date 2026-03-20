@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from models_store import Models
+from fastapi_limiter.depends import RateLimiter
+from pyrate_limiter import Duration, Limiter, Rate
 
 
 @asynccontextmanager
@@ -33,21 +35,30 @@ async def health():
     return {"status": "ok"}
 
 
-@app.post("/predict")
+@app.post(
+    "/predict",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(2, Duration.SECOND * 5))))]
+    )
 async def predict(payload: PredictPayload):
     try:
         return app.state.models.predict(payload.crop, payload.data)
     except (TypeError, ValueError) as e:
         return JSONResponse(status_code=422, content={"error": str(e)})
 
-@app.post("/predict_and_explain")
+@app.post(
+    "/predict_and_explain",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(2, Duration.SECOND * 5))))]
+    )
 async def predict_and_explain(payload: PredictPayload):
     try: 
         return app.state.models.predict_and_explain(payload.crop, payload.data)
     except (TypeError, ValueError) as e:
         return JSONResponse(status_code=422, content={"error": str(e)})
 
-@app.post("/recommend")
+@app.post(
+    "/recommend",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(2, Duration.SECOND * 5))))]
+    )
 async def recommend(payload: RecommendPayload):
     try:
         return app.state.models.recommend(payload.data)

@@ -6,6 +6,8 @@ from models_store import Models
 from fastapi_limiter.depends import RateLimiter
 from pyrate_limiter import Duration, Limiter, Rate
 
+NUMBER_OF_REQUESTS = 10
+NUMBER_OF_SECONDS = 30
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,7 +39,7 @@ async def health():
 
 @app.post(
     "/predict",
-    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(2, Duration.SECOND * 5))))]
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(NUMBER_OF_REQUESTS, Duration.SECOND * NUMBER_OF_SECONDS))))]
     )
 async def predict(payload: PredictPayload):
     try:
@@ -47,7 +49,7 @@ async def predict(payload: PredictPayload):
 
 @app.post(
     "/predict_and_explain",
-    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(2, Duration.SECOND * 5))))]
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(NUMBER_OF_REQUESTS, Duration.SECOND * NUMBER_OF_SECONDS))))]
     )
 async def predict_and_explain(payload: PredictPayload):
     try: 
@@ -57,7 +59,7 @@ async def predict_and_explain(payload: PredictPayload):
 
 @app.post(
     "/recommend",
-    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(2, Duration.SECOND * 5))))]
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(NUMBER_OF_REQUESTS, Duration.SECOND * NUMBER_OF_SECONDS))))]
     )
 async def recommend(payload: RecommendPayload):
     try:

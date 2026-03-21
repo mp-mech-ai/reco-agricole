@@ -36,7 +36,7 @@ html, body { height: 100%; margin: 0; padding: 0; }
 [data-testid="stAppViewContainer"] { height: 100%; display: flex; flex-direction: column; }
 [data-testid="stMain"] { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
 [data-testid="stMainBlockContainer"] {
-    flex: 1; min-height: 0; overflow: hidden;
+    flex: 1; min-height: 0;
     display: flex !important; flex-direction: column !important;
     padding-top: 16px !important; padding-bottom: 8px !important;
 }
@@ -46,7 +46,7 @@ html, body { height: 100%; margin: 0; padding: 0; }
 [data-testid="stColumn"] > [data-testid="stVerticalBlock"] { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 [data-testid="stVerticalBlockBorderWrapper"] {
     flex: 1 !important; min-height: 0 !important;
-    display: flex !important; flex-direction: column !important; overflow: hidden !important;
+    display: flex !important; flex-direction: column !important;
 }
 [data-testid="stVerticalBlockBorderWrapper"] > div {
     flex: 1 !important; min-height: 0 !important; overflow-y: auto !important;

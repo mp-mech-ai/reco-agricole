@@ -60,7 +60,7 @@ class UsageMetrics:
             "endpoint":  endpoint,
             "crop":      crop or "—",
             "input":     str(input_obj) if input_obj is not None else "—",
-            "output":    output_text if error else {output_text},
+            "output":    output_text if error else output_text,
         }
         self.logs.insert(0, entry)                      # newest first
         if len(self.logs) > MAX_LOG_ENTRIES:
@@ -86,7 +86,7 @@ async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
     request.app.state.metrics.record(endpoint, error=True, output_obj="Rate limit exceeded")
     return JSONResponse(
         status_code=429,
-        content={"error": "Rate limit reached — please wait a moment before retrying."},
+        content={"error": "Rate limit reached - please wait a moment before retrying."},
     )
 
 

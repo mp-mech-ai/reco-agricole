@@ -3,6 +3,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.io as pio
 import os
+import pandas as pd
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
@@ -29,7 +30,6 @@ st.set_page_config(page_title="Agri-Reco", layout="wide", page_icon="🌱")
 
 st.markdown("""
 <style>
-/* ── Viewport lock + flex chain ── */
 html, body { height: 100%; margin: 0; padding: 0; }
 .stApp { height: 100%; }
 
@@ -60,36 +60,44 @@ header[data-testid="stHeader"] { background: transparent; }
 
 .error-card { border-left: 4px solid #c0392b; border-radius: 8px; padding: 12px 16px; font-size: 0.86rem; }
 
-/* ── Button shimmer + lift ── */
+/* ── Log table ── */
+.log-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; font-family: monospace; }
+.log-table th {
+    text-align: left; padding: 6px 10px;
+    border-bottom: 1px solid rgba(128,128,128,0.25);
+    font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.6;
+    position: sticky; top: 0; background: var(--background-color, #0e1117); z-index: 1;
+}
+.log-table td { padding: 5px 10px; border-bottom: 1px solid rgba(128,128,128,0.10); vertical-align: top; }
+.log-table tr:hover td { background: rgba(128,128,128,0.06); }
+.badge-ok  { background: #1e4d2b; color: #4caf7d; padding: 1px 7px; border-radius: 10px; font-size: 0.70rem; }
+.badge-err { background: #4d1e1e; color: #e57373; padding: 1px 7px; border-radius: 10px; font-size: 0.70rem; }
+.cell-mono { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.75; }
+
+/* ── Button ── */
 .stButton > button {
-    position: relative !important;
-    overflow: hidden !important;
-    width: 100% !important;
-    padding: 16px !important;
-    font-size: 0.82rem !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.12em !important;
-    text-transform: uppercase !important;
+    position: relative !important; overflow: hidden !important;
+    width: 100% !important; padding: 16px !important;
+    font-size: 0.82rem !important; font-weight: 500 !important;
+    letter-spacing: 0.12em !important; text-transform: uppercase !important;
     box-shadow: 0 4px 14px rgba(0,0,0,0.20) !important;
     transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease !important;
 }
 .stButton > button::after {
-    content: '';
-    position: absolute;
-    inset: 0;
+    content: ''; position: absolute; inset: 0;
     background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%);
-    transform: translateX(-100%);
-    transition: transform 0.45s ease;
+    transform: translateX(-100%); transition: transform 0.45s ease;
 }
 .stButton > button:hover::after { transform: translateX(100%); }
 .stButton > button:hover  { transform: translateY(-2px) !important; box-shadow: 0 8px 20px rgba(0,0,0,0.25) !important; filter: brightness(1.08) !important; }
 .stButton > button:active { transform: translateY(0) scale(0.98) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important; }
-
 hr { margin: 12px 0; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+
+# ── API helpers ────────────────────────────────────────────────────────────────
+
 def build_data(rain, temp, year, pest, area, days, irr, fert, soil) -> dict:
     return {
         "rain (mm)": rain, "temp (C)": temp, "Year": year,
@@ -97,18 +105,54 @@ def build_data(rain, temp, year, pest, area, days, irr, fert, soil) -> dict:
         "Irrigation_Used": irr, "Fertilizer_Used": fert, "Soil_Type": soil,
     }
 
-def call_predict(crop: str, data: dict):
+def _handle_response(resp: requests.Response) -> dict:
+    if resp.status_code == 429:
+        return {"error": "Rate limit reached — please wait a moment before retrying."}
+    if resp.status_code == 422:
+        try:
+            body = resp.json()
+            return {"error": body.get("error", body.get("detail", "Invalid request."))}
+        except Exception:
+            return {"error": "Invalid request (422)."}
     try:
-        return requests.post(f"{API_URL}/predict_and_explain", json={"crop": crop, "data": data}, timeout=10).json()
+        return resp.json()
+    except Exception:
+        return {"error": f"Unexpected response (HTTP {resp.status_code})."}
+ 
+def call_predict(crop: str, data: dict) -> dict:
+    try:
+        resp = requests.post(
+            f"{API_URL}/predict_and_explain",
+            json={"crop": crop, "data": data},
+            timeout=10,
+        )
+        return _handle_response(resp)
+    except requests.exceptions.ConnectionError:
+        return {"error": f"Cannot reach API at {API_URL}"}
+    except requests.exceptions.Timeout:
+        return {"error": "Request timed out."}
+ 
+def call_recommend(data: dict) -> dict:
+    try:
+        resp = requests.post(
+            f"{API_URL}/recommend",
+            json={"data": data},
+            timeout=10,
+        )
+        return _handle_response(resp)
+    except requests.exceptions.ConnectionError:
+        return {"error": f"Cannot reach API at {API_URL}"}
+    except requests.exceptions.Timeout:
+        return {"error": "Request timed out."}
+
+def call_metrics() -> dict:
+    try:
+        return requests.get(f"{API_URL}/metrics", timeout=5).json()
     except requests.exceptions.ConnectionError:
         return {"error": f"Cannot reach API at {API_URL}"}
 
-def call_recommend(data: dict) -> dict:
-    """Call predict for all crops and return a dict of {crop: yield}."""
-    try: 
-        return requests.post(f"{API_URL}/recommend", json={"data": data}, timeout=10).json()
-    except requests.exceptions.ConnectionError:
-        return {"error": f"Cannot reach API at {API_URL}"}
+
+# ── Render helpers ─────────────────────────────────────────────────────────────
 
 def render_predict_result(crop: str, result: dict):
     if "error" in result:
@@ -122,146 +166,256 @@ def render_predict_result(crop: str, result: dict):
 def render_explain_result(crop: str, result: dict):
     if "error" in result:
         st.markdown(f'<div class="error-card">⚠ {result["error"]}</div>', unsafe_allow_html=True)
-    else:
-        shap_vals = result["shap_values"]  # {"Area": 0.42, "Soil_Type": -0.18, ...}
-        base_val  = result["base_value"]
-        raw_data  = result["raw_data"]
+        return
 
-        # Sort by absolute impact for readability
-        sorted_items = sorted(shap_vals.items(), key=lambda x: abs(x[1]))
-        features, values = zip(*sorted_items)
+    shap_vals = result["shap_values"]
+    base_val  = result["base_value"]
+    raw_data  = result["raw_data"]
 
-        # "Area = France", "Soil_Type = Clay", "Year = 2023" ...
-        labels = [f"{f} = {raw_data.get(f, '')}" for f in features]
+    sorted_items = sorted(shap_vals.items(), key=lambda x: abs(x[1]))
+    features, values = zip(*sorted_items)
+    labels = [f"{f} = {raw_data.get(f, '')}" for f in features]
 
-        fig = go.Figure(go.Waterfall(
-            orientation="h",
-            measure=["relative"] * len(values),
-            y=labels,
-            x=list(values) + [sum(values)],
-            base=base_val,
-            connector={"line": {"color": "lightgrey"}},
-            increasing={"marker": {"color": "#3182bd"}},
-            decreasing={"marker": {"color": "#d9534f"}},
-        ))
-        fig.update_layout(
-            xaxis_title="SHAP value (impact on predicted yield)",
-            waterfallgap=0.4,
-            height=500,
-            margin={"l": 0, "r": 0, "t": 0, "b": 0},
-        )
-        st.plotly_chart(fig, width="stretch", theme="streamlit")
+    fig = go.Figure(go.Waterfall(
+        orientation="h",
+        measure=["relative"] * len(values),
+        y=labels,
+        x=list(values),
+        base=base_val,
+        connector={"line": {"color": "lightgrey"}},
+        increasing={"marker": {"color": "#3182bd"}},
+        decreasing={"marker": {"color": "#d9534f"}},
+    ))
+    fig.update_layout(
+        xaxis_title="SHAP value (impact on predicted yield)",
+        waterfallgap=0.4,
+        height=500,
+        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+    )
+    st.plotly_chart(fig, width="stretch", theme="streamlit")
 
 def render_recommend_result(yields: dict):
     if "error" in yields:
         st.markdown(f'<div class="error-card">⚠ {yields["error"]}</div>', unsafe_allow_html=True)
         return
-    template = pio.templates["streamlit"]
-    colors = template.layout.colorway
 
-    primary = colors[0]
-    secondary = colors[1]
-    best_crop = max(yields, key=yields.get)
+    template   = pio.templates["streamlit"]
+    colors     = template.layout.colorway
+    best_crop  = max(yields, key=yields.get)
     sorted_crops  = sorted(yields, key=yields.get)
     sorted_yields = [yields[c] for c in sorted_crops]
-    bar_colors    = [primary if c == best_crop else secondary for c in sorted_crops]
+    bar_colors    = [colors[0] if c == best_crop else colors[1] for c in sorted_crops]
     labels        = [f"{CROP_EMOJI[c]} {c}" for c in sorted_crops]
-    
+
     fig = go.Figure(go.Bar(
-        x=sorted_yields,
-        y=labels,
-        orientation="h",
-        marker=dict(
-            color=bar_colors,
-            line=dict(width=0),
-        ),
+        x=sorted_yields, y=labels, orientation="h",
+        marker=dict(color=bar_colors, line=dict(width=0)),
         text=[f"{v:,.2f}" for v in sorted_yields],
         textposition="outside",
         hovertemplate="%{y}: <b>%{x:,.2f} hg/ha</b><extra></extra>",
     ))
-
     fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor ="rgba(0,0,0,0)",
-        margin=dict(l=0, r=60, t=10, b=0),
-        height=180,
-        xaxis=dict(
-            showgrid=True,
-            zeroline=False,
-            showticklabels=False,
-        ),
-        yaxis=dict(
-            showgrid=False,
-        ),
-        showlegend=False,
-        bargap=0.35,
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=0, r=60, t=10, b=0), height=180,
+        xaxis=dict(showgrid=True, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False), showlegend=False, bargap=0.35,
     )
-
     st.metric(
-            label=f"Best choice: {CROP_EMOJI[best_crop]} {best_crop}",
-            value=f"{yields[best_crop]:,.2f} hg/ha",
-        )
+        label=f"Best choice: {CROP_EMOJI[best_crop]} {best_crop}",
+        value=f"{yields[best_crop]:,.2f} hg/ha",
+    )
     st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme="streamlit")
 
-# ── Layout ─────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div style="padding-bottom: 10px;">
-    <div class="dashboard-title">🌱 Agricultural recommendation </div>
-    <div class="dashboard-subtitle">Yield prediction & crop recommendation engine</div>
-</div>
-""", unsafe_allow_html=True)
+def render_log_table(logs: list):
+    st.dataframe(pd.DataFrame(logs))
 
-col_config, col_results = st.columns([1, 1], gap="large")
+def render_monitoring(m: dict):
+    if "error" in m:
+        st.markdown(f'<div class="error-card">⚠ {m["error"]}</div>', unsafe_allow_html=True)
+        return
 
-with col_config:
-    with st.container(border=True):
-        st.markdown('<div class="section-label">Configuration</div>', unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            area = st.selectbox("Region", COUNTRIES, index=COUNTRIES.index("Australia"))
-            soil = st.selectbox("Soil type", SOIL_TYPES, index=SOIL_TYPES.index("Silt"))
-            rain = st.number_input("Rainfall (mm)", min_value=0.0, value=534.0, step=10.0)
-            temp = st.number_input("Temperature (°C)", value=14.74, step=0.5)
-        with c2:
-            year = st.number_input("Year", min_value=1900, max_value=2100, value=2013, step=1)
-            days = st.number_input("Days to harvest", min_value=1, max_value=365, value=104, step=1)
-            pest = st.number_input("Pesticides (tonnes)", min_value=0.0, value=45177.18, step=100.0)
-            irr  = st.checkbox("Irrigation used", value=True)
-            fert = st.checkbox("Fertilizer used", value=True)
+    k1, k2, k3 = st.columns(3)
+    k1.metric("Total calls",  m["total_calls"])
+    k2.metric("Errors",       m["errors"])
+    k3.metric("Error rate",  f'{m["error_rate"]:.0%}')
 
-        st.markdown("<hr>", unsafe_allow_html=True)
-        st.markdown('<div class="section-label">Predict for a specific crop</div>', unsafe_allow_html=True)
-        crop = st.selectbox("Crop", CROPS, label_visibility="collapsed")
-        run_predict = st.button("Run prediction", key="btn_predict")
+    st.markdown("---")
 
-        st.markdown("<hr>", unsafe_allow_html=True)
-        st.markdown('<div class="section-label">Recommend best crop</div>', unsafe_allow_html=True)
-        st.caption("Evaluates all three crops and returns the highest-yield option.")
-        run_recommend = st.button("Get recommendation", key="btn_recommend")
+    c1, c2 = st.columns(2)
 
-with col_results:
-    with st.container(border=True):
-        st.markdown('<div class="section-label">Results</div>', unsafe_allow_html=True)
+    with c1:
+        ep_data = m["calls_by_endpoint"]
+        if ep_data:
+            fig = go.Figure(go.Bar(
+                x=list(ep_data.values()), y=list(ep_data.keys()),
+                orientation="h", marker_color="#3182bd",
+                text=list(ep_data.values()), textposition="outside",
+            ))
+            fig.update_layout(
+                title="Calls by endpoint", height=200,
+                margin=dict(l=0, r=40, t=40, b=0),
+                xaxis=dict(showticklabels=False),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            )
+            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+        else:
+            st.caption("No endpoint data yet.")
 
-        data = build_data(rain, temp, year, pest, area, days, irr, fert, soil)
+    with c2:
+        crop_data = m["calls_by_crop"]
+        if crop_data:
+            fig = go.Figure(go.Pie(
+                labels=[f"{CROP_EMOJI.get(c, '')} {c}" for c in crop_data],
+                values=list(crop_data.values()), hole=0.4,
+            ))
+            fig.update_layout(
+                title="Calls by crop", height=200,
+                margin=dict(l=0, r=0, t=40, b=0),
+                paper_bgcolor="rgba(0,0,0,0)",
+            )
+            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+        else:
+            st.caption("No crop data yet.")
 
-        if run_predict:
-            with st.spinner("Calling prediction model…"):
-                result = call_predict(crop, data)
-            render_predict_result(crop, result)
-            st.markdown('<div class="section-label">SHAP explanation</div>', unsafe_allow_html=True)
-            render_explain_result(crop, result)
+    st.markdown("---")
+    st.markdown('<div class="section-label">Raw logs</div>', unsafe_allow_html=True)
+    render_log_table(m.get("logs", []))
 
-        if run_recommend:
-            with st.spinner("Evaluating all crops…"):
-                yields = call_recommend(data)
-            render_recommend_result(yields)
 
-        if not run_predict and not run_recommend:
-            st.markdown("""
-            <div style="text-align:center; padding: 60px 20px; opacity: 0.45;">
-                <div style="font-size: 3rem;">🌾</div>
-                <div style="font-size:0.9rem; margin-top:12px;">
-                    Configure your parameters and run a prediction<br>or recommendation on the left.
-                </div>
-            </div>""", unsafe_allow_html=True)
+# ── Header & Navbar ────────────────────────────────────────────────────────────
+# Ratio is 1 to 4. We use st.radio as a horizontal navbar so the content 
+# beneath it isn't trapped in a column context.
+col1, col2 = st.columns([1, 4])
+
+with col1:
+    st.markdown("""
+    <div style="padding-bottom: 10px;">
+        <div class="dashboard-title">🌱 Agricultural recommendation</div>
+        <div class="dashboard-subtitle">Yield prediction & crop recommendation engine</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    # CSS to hide radio circles, style as nav pills, and center perfectly
+    st.markdown("""
+    <style>
+    /* 1. Center the entire radio container */
+    div[data-testid="stRadio"] {
+        display: flex;
+        height: 100%;
+        align-items: center;
+        justify-content: center;
+        padding-top: 15px; 
+    }
+    
+    /* 2. Center the options and add spacing between them */
+    div[role="radiogroup"] {
+        display: flex;
+        justify-content: center;
+        gap: 2.5rem;
+        width: 100%;
+    }
+
+    /* 3. Hide the actual radio button circles */
+    div[role="radiogroup"] > label > div:first-of-type {
+        display: none !important;
+    }
+
+    /* 4. Style the text labels to look like navbar links */
+    div[role="radiogroup"] > label {
+        cursor: pointer !important;
+        padding: 8px 16px !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        transition: background-color 0.2s ease, transform 0.1s ease !important;
+    }
+
+    /* 5. Add a subtle hover effect */
+    div[role="radiogroup"] > label:hover {
+        background-color: rgba(128, 128, 128, 0.1) !important;
+        transform: translateY(-1px);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    active_tab = st.radio(
+        "Navigation",
+        ["Prediction & Recommendation", "Monitoring"],
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+
+st.markdown("<hr style='margin-top: 0px; margin-bottom: 24px;'>", unsafe_allow_html=True)
+
+
+# ── Tab 1 : main app ───────────────────────────────────────────────────────────
+if active_tab == "Prediction & Recommendation":
+    col_config, col_results = st.columns([1, 1], gap="large")
+
+    with col_config:
+        with st.container(border=True):
+            st.markdown('<div class="section-label">Configuration</div>', unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            with c1:
+                area = st.selectbox("Region", COUNTRIES, index=COUNTRIES.index("Australia"))
+                soil = st.selectbox("Soil type", SOIL_TYPES, index=SOIL_TYPES.index("Silt"))
+                rain = st.number_input("Rainfall (mm)", min_value=0.0, value=534.0, step=10.0)
+                temp = st.number_input("Temperature (°C)", value=14.74, step=0.5)
+            with c2:
+                year = st.number_input("Year", min_value=1900, max_value=2100, value=2013, step=1)
+                days = st.number_input("Days to harvest", min_value=1, max_value=365, value=104, step=1)
+                pest = st.number_input("Pesticides (tonnes)", min_value=0.0, value=45177.18, step=100.0)
+                irr  = st.checkbox("Irrigation used", value=True)
+                fert = st.checkbox("Fertilizer used", value=True)
+
+            st.markdown("<hr>", unsafe_allow_html=True)
+            st.markdown('<div class="section-label">Predict for a specific crop</div>', unsafe_allow_html=True)
+            crop = st.selectbox("Crop", CROPS, label_visibility="collapsed")
+            run_predict = st.button("Run prediction", key="btn_predict")
+
+            st.markdown("<hr>", unsafe_allow_html=True)
+            st.markdown('<div class="section-label">Recommend best crop</div>', unsafe_allow_html=True)
+            st.caption("Evaluates all three crops and returns the highest-yield option.")
+            run_recommend = st.button("Get recommendation", key="btn_recommend")
+
+    with col_results:
+        with st.container(border=True):
+            st.markdown('<div class="section-label">Results</div>', unsafe_allow_html=True)
+
+            data = build_data(rain, temp, year, pest, area, days, irr, fert, soil)
+
+            if run_predict:
+                with st.spinner("Calling prediction model…"):
+                    result = call_predict(crop, data)
+                render_predict_result(crop, result)
+                st.markdown('<div class="section-label">SHAP explanation</div>', unsafe_allow_html=True)
+                render_explain_result(crop, result)
+
+            if run_recommend:
+                with st.spinner("Evaluating all crops…"):
+                    yields = call_recommend(data)
+                render_recommend_result(yields)
+
+            if not run_predict and not run_recommend:
+                st.markdown("""
+                <div style="text-align:center; padding: 60px 20px; opacity: 0.45;">
+                    <div style="font-size: 3rem;">🌾</div>
+                    <div style="font-size:0.9rem; margin-top:12px;">
+                        Configure your parameters and run a prediction<br>or recommendation on the left.
+                    </div>
+                </div>""", unsafe_allow_html=True)
+
+
+# ── Tab 2 : monitoring ─────────────────────────────────────────────────────────
+elif active_tab == "Monitoring":
+    col_title, col_refresh = st.columns([5, 1])
+    with col_title:
+        st.markdown('<div class="section-label">API usage</div>', unsafe_allow_html=True)
+    with col_refresh:
+        refresh = st.button("↻ Refresh", key="btn_metrics")
+
+    # Auto-load on first visit; reload when Refresh is clicked
+    if "metrics_cache" not in st.session_state or refresh:
+        st.session_state.metrics_cache = call_metrics()
+
+    render_monitoring(st.session_state.metrics_cache)

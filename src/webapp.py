@@ -255,9 +255,8 @@ def render_monitoring(m: dict):
                 title="Calls by endpoint", height=200,
                 margin=dict(l=0, r=40, t=40, b=0),
                 xaxis=dict(showticklabels=False),
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
             )
-            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme="streamlit")
         else:
             st.caption("No endpoint data yet.")
 
@@ -271,9 +270,8 @@ def render_monitoring(m: dict):
             fig.update_layout(
                 title="Calls by crop", height=200,
                 margin=dict(l=0, r=0, t=40, b=0),
-                paper_bgcolor="rgba(0,0,0,0)",
             )
-            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme="streamlit")
         else:
             st.caption("No crop data yet.")
 
@@ -356,7 +354,6 @@ st.markdown("<hr style='margin-top: 0px; margin-bottom: 24px;'>", unsafe_allow_h
 # ── Tab 1 : main app ───────────────────────────────────────────────────────────
 if active_tab == "Prediction":
     col_config, col_results = st.columns([1, 1], gap="large")
-
     with col_config:
         with st.container(border=True):
             st.markdown('<div class="section-label">Configuration</div>', unsafe_allow_html=True)

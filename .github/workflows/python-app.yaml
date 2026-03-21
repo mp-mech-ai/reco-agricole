@@ -21,7 +21,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Run tests
-        run: uv run pytest src/tests.py -v
+        run: DISABLE_RATE_LIMIT=true uv run pytest src/tests.py -v
 
   smoke-test:
     name: Smoke test via Docker Compose

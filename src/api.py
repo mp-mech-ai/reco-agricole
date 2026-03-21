@@ -54,7 +54,7 @@ class UsageMetrics:
         if error:
             self.errors += 1
 
-        output_text = str(dict(output_obj)) if output_obj is not None else "—"
+        output_text = str(output_obj) if output_obj is not None else "—"
         entry = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "endpoint":  endpoint,

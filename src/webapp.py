@@ -283,9 +283,8 @@ def render_monitoring(m: dict):
 
 
 # ── Header & Navbar ────────────────────────────────────────────────────────────
-# Ratio is 1 to 4. We use st.radio as a horizontal navbar so the content 
-# beneath it isn't trapped in a column context.
-col1, col2 = st.columns([1, 4])
+
+col1, col2, _ = st.columns([1, 2, 1])
 
 with col1:
     st.markdown("""
@@ -307,7 +306,6 @@ with col2:
         justify-content: center;
         padding-top: 15px; 
     }
-    
     /* 2. Center the options and add spacing between them */
     div[role="radiogroup"] {
         display: flex;
@@ -315,41 +313,48 @@ with col2:
         gap: 2.5rem;
         width: 100%;
     }
-
     /* 3. Hide the actual radio button circles */
     div[role="radiogroup"] > label > div:first-of-type {
         display: none !important;
     }
-
     /* 4. Style the text labels to look like navbar links */
     div[role="radiogroup"] > label {
         cursor: pointer !important;
         padding: 8px 16px !important;
         border-radius: 6px !important;
-        font-weight: 600 !important;
-        transition: background-color 0.2s ease, transform 0.1s ease !important;
+        flex: none !important;
+        width: max-content !important;
+        opacity: 0.45 !important;
+        transition: opacity 0.2s ease !important;
     }
-
-    /* 5. Add a subtle hover effect */
+    /* Target the inner elements of the label */
+    div[role="radiogroup"] > label p {
+        font-size: 1.5rem !important;
+        font-weight: 600 !important;
+    }
+    /* 5. Darken slightly on hover */
     div[role="radiogroup"] > label:hover {
-        background-color: rgba(128, 128, 128, 0.1) !important;
-        transform: translateY(-1px);
+        opacity: 0.7 !important;
+    }
+    /* 6. Darken fully when selected */
+    div[role="radiogroup"] > label[data-baseweb="radio"]:has(input:checked) {
+        opacity: 1 !important;
     }
     </style>
     """, unsafe_allow_html=True)
-    
-    active_tab = st.radio(
-        "Navigation",
-        ["Prediction & Recommendation", "Monitoring"],
-        horizontal=True,
-        label_visibility="collapsed"
-    )
+    with st.container(horizontal_alignment="center"):
+        active_tab = st.radio(
+            "Navigation",
+            ["Prediction", "Monitoring"],
+            horizontal=True,
+            label_visibility="collapsed"
+        )
 
 st.markdown("<hr style='margin-top: 0px; margin-bottom: 24px;'>", unsafe_allow_html=True)
 
 
 # ── Tab 1 : main app ───────────────────────────────────────────────────────────
-if active_tab == "Prediction & Recommendation":
+if active_tab == "Prediction":
     col_config, col_results = st.columns([1, 1], gap="large")
 
     with col_config:

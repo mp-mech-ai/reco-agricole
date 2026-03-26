@@ -7,28 +7,117 @@ import pandas as pd
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
-COUNTRIES = sorted([
-    'Algeria', 'Angola', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan',
-    'Bahamas', 'Bangladesh', 'Belarus', 'Belgium', 'Botswana', 'Brazil', 'Bulgaria',
-    'Burkina Faso', 'Burundi', 'Cameroon', 'Canada', 'Central African Republic', 'Chile',
-    'Colombia', 'Croatia', 'Denmark', 'Dominican Republic', 'Ecuador', 'Egypt', 'El Salvador',
-    'Eritrea', 'Estonia', 'Finland', 'France', 'Germany', 'Ghana', 'Greece', 'Guatemala',
-    'Guinea', 'Guyana', 'Haiti', 'Honduras', 'Hungary', 'India', 'Indonesia', 'Iraq', 'Ireland',
-    'Italy', 'Jamaica', 'Japan', 'Kazakhstan', 'Kenya', 'Latvia', 'Lebanon', 'Lesotho', 'Libya',
-    'Lithuania', 'Madagascar', 'Malawi', 'Malaysia', 'Mali', 'Mauritania', 'Mauritius', 'Mexico',
-    'Montenegro', 'Morocco', 'Mozambique', 'Namibia', 'Nepal', 'Netherlands', 'New Zealand',
-    'Nicaragua', 'Niger', 'Norway', 'Pakistan', 'Papua New Guinea', 'Peru', 'Poland', 'Portugal',
-    'Qatar', 'Romania', 'Rwanda', 'Saudi Arabia', 'Senegal', 'Slovenia', 'South Africa', 'Spain',
-    'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Tajikistan', 'Thailand', 'Tunisia',
-    'Turkey', 'Uganda', 'Ukraine', 'United Kingdom', 'Uruguay', 'Zambia', 'Zimbabwe',
-])
-SOIL_TYPES = ['Clay', 'Loam', 'Peaty', 'Sandy', 'Silt']
-CROPS      = ['Maize', 'Rice', 'Wheat']
-CROP_EMOJI = {'Maize': '🌽', 'Rice': '🌾', 'Wheat': '🌿'}
+COUNTRIES = sorted(
+    [
+        "Algeria",
+        "Angola",
+        "Argentina",
+        "Armenia",
+        "Australia",
+        "Austria",
+        "Azerbaijan",
+        "Bahamas",
+        "Bangladesh",
+        "Belarus",
+        "Belgium",
+        "Botswana",
+        "Brazil",
+        "Bulgaria",
+        "Burkina Faso",
+        "Burundi",
+        "Cameroon",
+        "Canada",
+        "Central African Republic",
+        "Chile",
+        "Colombia",
+        "Croatia",
+        "Denmark",
+        "Dominican Republic",
+        "Ecuador",
+        "Egypt",
+        "El Salvador",
+        "Eritrea",
+        "Estonia",
+        "Finland",
+        "France",
+        "Germany",
+        "Ghana",
+        "Greece",
+        "Guatemala",
+        "Guinea",
+        "Guyana",
+        "Haiti",
+        "Honduras",
+        "Hungary",
+        "India",
+        "Indonesia",
+        "Iraq",
+        "Ireland",
+        "Italy",
+        "Jamaica",
+        "Japan",
+        "Kazakhstan",
+        "Kenya",
+        "Latvia",
+        "Lebanon",
+        "Lesotho",
+        "Libya",
+        "Lithuania",
+        "Madagascar",
+        "Malawi",
+        "Malaysia",
+        "Mali",
+        "Mauritania",
+        "Mauritius",
+        "Mexico",
+        "Montenegro",
+        "Morocco",
+        "Mozambique",
+        "Namibia",
+        "Nepal",
+        "Netherlands",
+        "New Zealand",
+        "Nicaragua",
+        "Niger",
+        "Norway",
+        "Pakistan",
+        "Papua New Guinea",
+        "Peru",
+        "Poland",
+        "Portugal",
+        "Qatar",
+        "Romania",
+        "Rwanda",
+        "Saudi Arabia",
+        "Senegal",
+        "Slovenia",
+        "South Africa",
+        "Spain",
+        "Sri Lanka",
+        "Sudan",
+        "Suriname",
+        "Sweden",
+        "Switzerland",
+        "Tajikistan",
+        "Thailand",
+        "Tunisia",
+        "Turkey",
+        "Uganda",
+        "Ukraine",
+        "United Kingdom",
+        "Uruguay",
+        "Zambia",
+        "Zimbabwe",
+    ]
+)
+SOIL_TYPES = ["Clay", "Loam", "Peaty", "Sandy", "Silt"]
+CROPS = ["Maize", "Rice", "Wheat"]
+CROP_EMOJI = {"Maize": "🌽", "Rice": "🌾", "Wheat": "🌿"}
 
 st.set_page_config(page_title="Agri-Reco", layout="wide", page_icon="🌱")
 
-st.markdown("""
+st.markdown(
+    """
 <style>
 html, body { height: 100%; margin: 0; padding: 0; }
 .stApp { height: 100%; }
@@ -93,17 +182,27 @@ header[data-testid="stHeader"] { background: transparent; }
 .stButton > button:active { transform: translateY(0) scale(0.98) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important; }
 hr { margin: 12px 0; }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 
 # ── API helpers ────────────────────────────────────────────────────────────────
 
+
 def build_data(rain, temp, year, pest, area, days, irr, fert, soil) -> dict:
     return {
-        "rain (mm)": rain, "temp (C)": temp, "Year": year,
-        "pesticides_tonnes": pest, "Area": area, "Days_to_Harvest": days,
-        "Irrigation_Used": irr, "Fertilizer_Used": fert, "Soil_Type": soil,
+        "rain (mm)": rain,
+        "temp (C)": temp,
+        "Year": year,
+        "pesticides_tonnes": pest,
+        "Area": area,
+        "Days_to_Harvest": days,
+        "Irrigation_Used": irr,
+        "Fertilizer_Used": fert,
+        "Soil_Type": soil,
     }
+
 
 def _handle_response(resp: requests.Response) -> dict:
     if resp.status_code == 429:
@@ -118,7 +217,8 @@ def _handle_response(resp: requests.Response) -> dict:
         return resp.json()
     except Exception:
         return {"error": f"Unexpected response (HTTP {resp.status_code})."}
- 
+
+
 def call_predict(crop: str, data: dict) -> dict:
     try:
         resp = requests.post(
@@ -131,7 +231,8 @@ def call_predict(crop: str, data: dict) -> dict:
         return {"error": f"Cannot reach API at {API_URL}"}
     except requests.exceptions.Timeout:
         return {"error": "Request timed out."}
- 
+
+
 def call_recommend(data: dict) -> dict:
     try:
         resp = requests.post(
@@ -145,6 +246,7 @@ def call_recommend(data: dict) -> dict:
     except requests.exceptions.Timeout:
         return {"error": "Request timed out."}
 
+
 def call_metrics() -> dict:
     try:
         return requests.get(f"{API_URL}/metrics", timeout=5).json()
@@ -154,38 +256,46 @@ def call_metrics() -> dict:
 
 # ── Render helpers ─────────────────────────────────────────────────────────────
 
+
 def render_predict_result(crop: str, result: dict):
     if "error" in result:
-        st.markdown(f'<div class="error-card">⚠ {result["error"]}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="error-card">⚠ {result["error"]}</div>', unsafe_allow_html=True
+        )
     else:
         st.metric(
             label=f"{CROP_EMOJI.get(crop, '')} {crop} — estimated yield",
             value=f"{result['yield']:,.2f} hg/ha",
         )
 
+
 def render_explain_result(crop: str, result: dict):
     if "error" in result:
-        st.markdown(f'<div class="error-card">⚠ {result["error"]}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="error-card">⚠ {result["error"]}</div>', unsafe_allow_html=True
+        )
         return
 
     shap_vals = result["shap_values"]
-    base_val  = result["base_value"]
-    raw_data  = result["raw_data"]
+    base_val = result["base_value"]
+    raw_data = result["raw_data"]
 
     sorted_items = sorted(shap_vals.items(), key=lambda x: abs(x[1]))
     features, values = zip(*sorted_items)
     labels = [f"{f} = {raw_data.get(f, '')}" for f in features]
 
-    fig = go.Figure(go.Waterfall(
-        orientation="h",
-        measure=["relative"] * len(values),
-        y=labels,
-        x=list(values),
-        base=base_val,
-        connector={"line": {"color": "lightgrey"}},
-        increasing={"marker": {"color": "#3182bd"}},
-        decreasing={"marker": {"color": "#d9534f"}},
-    ))
+    fig = go.Figure(
+        go.Waterfall(
+            orientation="h",
+            measure=["relative"] * len(values),
+            y=labels,
+            x=list(values),
+            base=base_val,
+            connector={"line": {"color": "lightgrey"}},
+            increasing={"marker": {"color": "#3182bd"}},
+            decreasing={"marker": {"color": "#d9534f"}},
+        )
+    )
     fig.update_layout(
         xaxis_title="SHAP value (impact on predicted yield)",
         waterfallgap=0.4,
@@ -194,50 +304,67 @@ def render_explain_result(crop: str, result: dict):
     )
     st.plotly_chart(fig, width="stretch", theme="streamlit")
 
+
 def render_recommend_result(yields: dict):
     if "error" in yields:
-        st.markdown(f'<div class="error-card">⚠ {yields["error"]}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="error-card">⚠ {yields["error"]}</div>', unsafe_allow_html=True
+        )
         return
 
-    template   = pio.templates["streamlit"]
-    colors     = template.layout.colorway
-    best_crop  = max(yields, key=yields.get)
-    sorted_crops  = sorted(yields, key=yields.get)
+    template = pio.templates["streamlit"]
+    colors = template.layout.colorway
+    best_crop = max(yields, key=yields.get)
+    sorted_crops = sorted(yields, key=yields.get)
     sorted_yields = [yields[c] for c in sorted_crops]
-    bar_colors    = [colors[0] if c == best_crop else colors[1] for c in sorted_crops]
-    labels        = [f"{CROP_EMOJI[c]} {c}" for c in sorted_crops]
+    bar_colors = [colors[0] if c == best_crop else colors[1] for c in sorted_crops]
+    labels = [f"{CROP_EMOJI[c]} {c}" for c in sorted_crops]
 
-    fig = go.Figure(go.Bar(
-        x=sorted_yields, y=labels, orientation="h",
-        marker=dict(color=bar_colors, line=dict(width=0)),
-        text=[f"{v:,.2f}" for v in sorted_yields],
-        textposition="outside",
-        hovertemplate="%{y}: <b>%{x:,.2f} hg/ha</b><extra></extra>",
-    ))
+    fig = go.Figure(
+        go.Bar(
+            x=sorted_yields,
+            y=labels,
+            orientation="h",
+            marker=dict(color=bar_colors, line=dict(width=0)),
+            text=[f"{v:,.2f}" for v in sorted_yields],
+            textposition="outside",
+            hovertemplate="%{y}: <b>%{x:,.2f} hg/ha</b><extra></extra>",
+        )
+    )
     fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=0, r=60, t=10, b=0), height=180,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=0, r=60, t=10, b=0),
+        height=180,
         xaxis=dict(showgrid=True, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False), showlegend=False, bargap=0.35,
+        yaxis=dict(showgrid=False),
+        showlegend=False,
+        bargap=0.35,
     )
     st.metric(
         label=f"Best choice: {CROP_EMOJI[best_crop]} {best_crop}",
         value=f"{yields[best_crop]:,.2f} hg/ha",
     )
-    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme="streamlit")
+    st.plotly_chart(
+        fig, width="stretch", config={"displayModeBar": False}, theme="streamlit"
+    )
+
 
 def render_log_table(logs: list):
     st.dataframe(pd.DataFrame(logs))
 
+
 def render_monitoring(m: dict):
     if "error" in m:
-        st.markdown(f'<div class="error-card">⚠ {m["error"]}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="error-card">⚠ {m["error"]}</div>', unsafe_allow_html=True
+        )
         return
 
     k1, k2, k3 = st.columns(3)
-    k1.metric("Total calls",  m["total_calls"])
-    k2.metric("Errors",       m["errors"])
-    k3.metric("Error rate",  f'{m["error_rate"]:.0%}')
+    k1.metric("Total calls", m["total_calls"])
+    k2.metric("Errors", m["errors"])
+    k3.metric("Error rate", f"{m['error_rate']:.0%}")
 
     st.markdown("---")
 
@@ -246,32 +373,52 @@ def render_monitoring(m: dict):
     with c1:
         ep_data = m["calls_by_endpoint"]
         if ep_data:
-            fig = go.Figure(go.Bar(
-                x=list(ep_data.values()), y=list(ep_data.keys()),
-                orientation="h", marker_color="#3182bd",
-                text=list(ep_data.values()), textposition="outside",
-            ))
+            fig = go.Figure(
+                go.Bar(
+                    x=list(ep_data.values()),
+                    y=list(ep_data.keys()),
+                    orientation="h",
+                    marker_color="#3182bd",
+                    text=list(ep_data.values()),
+                    textposition="outside",
+                )
+            )
             fig.update_layout(
-                title="Calls by endpoint", height=200,
+                title="Calls by endpoint",
+                height=200,
                 margin=dict(l=0, r=40, t=40, b=0),
                 xaxis=dict(showticklabels=False),
             )
-            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme="streamlit")
+            st.plotly_chart(
+                fig,
+                width="stretch",
+                config={"displayModeBar": False},
+                theme="streamlit",
+            )
         else:
             st.caption("No endpoint data yet.")
 
     with c2:
         crop_data = m["calls_by_crop"]
         if crop_data:
-            fig = go.Figure(go.Pie(
-                labels=[f"{CROP_EMOJI.get(c, '')} {c}" for c in crop_data],
-                values=list(crop_data.values()), hole=0.4,
-            ))
+            fig = go.Figure(
+                go.Pie(
+                    labels=[f"{CROP_EMOJI.get(c, '')} {c}" for c in crop_data],
+                    values=list(crop_data.values()),
+                    hole=0.4,
+                )
+            )
             fig.update_layout(
-                title="Calls by crop", height=200,
+                title="Calls by crop",
+                height=200,
                 margin=dict(l=0, r=0, t=40, b=0),
             )
-            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme="streamlit")
+            st.plotly_chart(
+                fig,
+                width="stretch",
+                config={"displayModeBar": False},
+                theme="streamlit",
+            )
         else:
             st.caption("No crop data yet.")
 
@@ -285,16 +432,20 @@ def render_monitoring(m: dict):
 col1, col2, _ = st.columns([1, 2, 1])
 
 with col1:
-    st.markdown("""
+    st.markdown(
+        """
     <div style="padding-bottom: 10px;">
         <div class="dashboard-title">🌱 Agricultural recommendation</div>
         <div class="dashboard-subtitle">Yield prediction & crop recommendation engine</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 with col2:
     # CSS to hide radio circles, style as nav pills, and center perfectly
-    st.markdown("""
+    st.markdown(
+        """
     <style>
     /* 1. Center the entire radio container */
     div[data-testid="stRadio"] {
@@ -339,16 +490,20 @@ with col2:
         opacity: 1 !important;
     }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
     with st.container(horizontal_alignment="center"):
         active_tab = st.radio(
             "Navigation",
             ["Prediction", "Monitoring"],
             horizontal=True,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
         )
 
-st.markdown("<hr style='margin-top: 0px; margin-bottom: 24px;'>", unsafe_allow_html=True)
+st.markdown(
+    "<hr style='margin-top: 0px; margin-bottom: 24px;'>", unsafe_allow_html=True
+)
 
 
 # ── Tab 1 : main app ───────────────────────────────────────────────────────────
@@ -356,33 +511,57 @@ if active_tab == "Prediction":
     col_config, col_results = st.columns([1, 1], gap="large")
     with col_config:
         with st.container(border=True):
-            st.markdown('<div class="section-label">Configuration</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="section-label">Configuration</div>', unsafe_allow_html=True
+            )
             c1, c2 = st.columns(2)
             with c1:
-                area = st.selectbox("Region", COUNTRIES, index=COUNTRIES.index("Australia"))
-                soil = st.selectbox("Soil type", SOIL_TYPES, index=SOIL_TYPES.index("Silt"))
-                rain = st.number_input("Rainfall (mm)", min_value=0.0, value=534.0, step=10.0)
+                area = st.selectbox(
+                    "Region", COUNTRIES, index=COUNTRIES.index("Australia")
+                )
+                soil = st.selectbox(
+                    "Soil type", SOIL_TYPES, index=SOIL_TYPES.index("Silt")
+                )
+                rain = st.number_input(
+                    "Rainfall (mm)", min_value=0.0, value=534.0, step=10.0
+                )
                 temp = st.number_input("Temperature (°C)", value=14.74, step=0.5)
             with c2:
-                year = st.number_input("Year", min_value=1900, max_value=2100, value=2013, step=1)
-                days = st.number_input("Days to harvest", min_value=1, max_value=365, value=104, step=1)
-                pest = st.number_input("Pesticides (tonnes)", min_value=0.0, value=45177.18, step=100.0)
-                irr  = st.checkbox("Irrigation used", value=True)
+                year = st.number_input(
+                    "Year", min_value=1900, max_value=2100, value=2013, step=1
+                )
+                days = st.number_input(
+                    "Days to harvest", min_value=1, max_value=365, value=104, step=1
+                )
+                pest = st.number_input(
+                    "Pesticides (tonnes)", min_value=0.0, value=45177.18, step=100.0
+                )
+                irr = st.checkbox("Irrigation used", value=True)
                 fert = st.checkbox("Fertilizer used", value=True)
 
             st.markdown("<hr>", unsafe_allow_html=True)
-            st.markdown('<div class="section-label">Predict for a specific crop</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="section-label">Predict for a specific crop</div>',
+                unsafe_allow_html=True,
+            )
             crop = st.selectbox("Crop", CROPS, label_visibility="collapsed")
             run_predict = st.button("Run prediction", key="btn_predict")
 
             st.markdown("<hr>", unsafe_allow_html=True)
-            st.markdown('<div class="section-label">Recommend best crop</div>', unsafe_allow_html=True)
-            st.caption("Evaluates all three crops and returns the highest-yield option.")
+            st.markdown(
+                '<div class="section-label">Recommend best crop</div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                "Evaluates all three crops and returns the highest-yield option."
+            )
             run_recommend = st.button("Get recommendation", key="btn_recommend")
 
     with col_results:
         with st.container(border=True):
-            st.markdown('<div class="section-label">Results</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="section-label">Results</div>', unsafe_allow_html=True
+            )
 
             data = build_data(rain, temp, year, pest, area, days, irr, fert, soil)
 
@@ -390,7 +569,10 @@ if active_tab == "Prediction":
                 with st.spinner("Calling prediction model…"):
                     result = call_predict(crop, data)
                 render_predict_result(crop, result)
-                st.markdown('<div class="section-label">SHAP explanation</div>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="section-label">SHAP explanation</div>',
+                    unsafe_allow_html=True,
+                )
                 render_explain_result(crop, result)
 
             if run_recommend:
@@ -399,20 +581,25 @@ if active_tab == "Prediction":
                 render_recommend_result(yields)
 
             if not run_predict and not run_recommend:
-                st.markdown("""
+                st.markdown(
+                    """
                 <div style="text-align:center; padding: 60px 20px; opacity: 0.45;">
                     <div style="font-size: 3rem;">🌾</div>
                     <div style="font-size:0.9rem; margin-top:12px;">
                         Configure your parameters and run a prediction<br>or recommendation on the left.
                     </div>
-                </div>""", unsafe_allow_html=True)
+                </div>""",
+                    unsafe_allow_html=True,
+                )
 
 
 # ── Tab 2 : monitoring ─────────────────────────────────────────────────────────
 elif active_tab == "Monitoring":
     col_title, col_refresh = st.columns([5, 1])
     with col_title:
-        st.markdown('<div class="section-label">API usage</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="section-label">API usage</div>', unsafe_allow_html=True
+        )
     with col_refresh:
         refresh = st.button("↻ Refresh", key="btn_metrics")
 

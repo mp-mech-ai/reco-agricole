@@ -16,6 +16,7 @@ VALID_DATA = {
 
 VALID_CROPS = {"Wheat", "Rice", "Maize"}
 
+
 def make_mock_booster(return_value: float = 5000.0):
     booster = MagicMock()
     booster.predict.return_value = [return_value]
@@ -26,6 +27,7 @@ def make_mock_booster(return_value: float = 5000.0):
 def client():
     with patch("models_store.Models._load", return_value=make_mock_booster()):
         from api import app
+
         with TestClient(app) as c:
             yield c
 
@@ -33,6 +35,7 @@ def client():
 # ---------------------------------------------------------------------------
 # Root / health
 # ---------------------------------------------------------------------------
+
 
 def test_root(client):
     assert client.get("/").json() == {"message": "Hello World"}
@@ -45,6 +48,7 @@ def test_health(client):
 # ---------------------------------------------------------------------------
 # /predict – happy path
 # ---------------------------------------------------------------------------
+
 
 def test_predict_returns_yield(client):
     response = client.post("/predict", json={"crop": "Rice", "data": VALID_DATA})
@@ -63,6 +67,7 @@ def test_predict_all_crops(client):
 # ---------------------------------------------------------------------------
 # /predict – error cases
 # ---------------------------------------------------------------------------
+
 
 def test_predict_missing_crop_key(client):
     assert client.post("/predict", json={"data": VALID_DATA}).status_code == 422
@@ -111,6 +116,7 @@ def test_predict_extra_field_in_data(client):
 # /recommend – happy path
 # ---------------------------------------------------------------------------
 
+
 def test_recommend_returns_item_and_yield(client):
     response = client.post("/recommend", json={"data": VALID_DATA})
     assert response.status_code == 200
@@ -122,6 +128,7 @@ def test_recommend_returns_item_and_yield(client):
 # ---------------------------------------------------------------------------
 # /recommend – error cases
 # ---------------------------------------------------------------------------
+
 
 def test_recommend_missing_data_key(client):
     assert client.post("/recommend", json={}).status_code == 422

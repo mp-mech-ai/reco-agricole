@@ -86,19 +86,17 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    
-    env: 
-      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/${{ secrets.GCP_SVC_ACCOUNT }}.json
-      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Authenticate to Google Cloud
-        run: |
-          echo "${{ secrets.GCP_SVC_ACCOUNT_CREDS }}" | base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
-          gcloud auth activate-service-account $SVC_ACCOUNT_EMAIL --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-          gcloud config set project $PROJECT_ID
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SVC_ACCOUNT_CREDS }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker
         run: gcloud auth configure-docker europe-west1-docker.pkg.dev
@@ -119,11 +117,13 @@ jobs:
         run: |
           gcloud run deploy api \
             --image europe-west1-docker.pkg.dev/reco-agricole/reco-agricole/api:${{ github.sha }} \
-            --region europe-west1 --platform managed
+            --region europe-west1 --platform managed \
+            --allow-unauthenticated --port 8000 --memory 1024Mi
 
       - name: Deploy webapp
         run: |
           gcloud run deploy webapp \
             --image europe-west1-docker.pkg.dev/reco-agricole/reco-agricole/webapp:${{ github.sha }} \
             --region europe-west1 --platform managed \
+            --allow-unauthenticated --port 8501 --memory 512Mi \
             --set-env-vars API_URL=${{ secrets.API_URL }}

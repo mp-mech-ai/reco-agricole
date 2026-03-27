@@ -8,11 +8,12 @@ You can view the dashboard at [https://agroreco.patarimi.duckdns.org/](https://a
 
 | Layer | Technology |
 |---|---|
-| ML models | XGBoost (`.json` format) |
+| ML models | XGBoost |
 | API | FastAPI + Uvicorn |
 | Dashboard | Streamlit + Plotly |
-| Package manager | uv |
-| Containerisation | Docker + Compose (local) |
+| Container registry | Google Artifact Registry |
+| Deployment | Google Cloud Run |
+| CI/CD | GitHub Actions → Cloud Run |
 
 ## Project structure
 

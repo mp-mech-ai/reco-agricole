@@ -78,21 +78,49 @@ jobs:
         run: docker compose down
 
   deploy:
-    name: Trigger Dockhand deployment
+    name: Deploy to Cloud Run
     runs-on: ubuntu-latest
     needs: smoke-test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
-      - name: Trigger webhook
-        env:
-          SECRET: ${{ secrets.DOCKHAND_WEBHOOK_SECRET }}
-          WEBHOOK_URL: ${{ secrets.DOCKHAND_WEBHOOK_URL }}
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
         run: |
-          PAYLOAD='{}'
-          SIGNATURE="sha256=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print $NF}')"
-          curl -4 --fail --max-time 10 \
-            --request POST \
-            --header "Content-Type: application/json" \
-            --header "X-Hub-Signature-256: $SIGNATURE" \
-            --data "$PAYLOAD" \
-            "$WEBHOOK_URL"
+          echo "${{ secrets.GCP_SVC_ACCOUNT_CREDS }}" | base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
+          gcloud auth activate-service-account $SVC_ACCOUNT_EMAIL --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+          gcloud config set project $PROJECT_ID
+          gcloud config set functions/region $REGION
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      - name: Build & push API
+        run: |
+          docker build -f Dockerfile.api \
+            -t europe-west1-docker.pkg.dev/reco-agricole/reco-agricole/api:${{ github.sha }} .
+          docker push europe-west1-docker.pkg.dev/reco-agricole/reco-agricole/api:${{ github.sha }}
+
+      - name: Build & push webapp
+        run: |
+          docker build -f Dockerfile.webapp \
+            -t europe-west1-docker.pkg.dev/reco-agricole/reco-agricole/webapp:${{ github.sha }} .
+          docker push europe-west1-docker.pkg.dev/reco-agricole/reco-agricole/webapp:${{ github.sha }}
+
+      - name: Deploy API
+        run: |
+          gcloud run deploy api \
+            --image europe-west1-docker.pkg.dev/reco-agricole/reco-agricole/api:${{ github.sha }} \
+            --region europe-west1 --platform managed
+
+      - name: Deploy webapp
+        run: |
+          gcloud run deploy webapp \
+            --image europe-west1-docker.pkg.dev/reco-agricole/reco-agricole/webapp:${{ github.sha }} \
+            --region europe-west1 --platform managed \
+            --set-env-vars API_URL=${{ secrets.API_URL }}

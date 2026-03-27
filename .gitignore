@@ -16,6 +16,7 @@ mlartifacts/*
 
 # Secrets
 .env
+reco-agricole-gh-sa_encoded.txt
 
 # Data
 data/*

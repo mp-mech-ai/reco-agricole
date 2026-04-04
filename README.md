@@ -2,7 +2,7 @@
 
 Crop yield prediction and recommendation system. Given field conditions (region, soil type, rainfall, temperature, pesticides, etc.), the API predicts the expected yield for a specific crop or recommends the highest-yielding option across Maize, Rice, and Wheat.
 
-You can view the dashboard at [https://agroreco.patarimi.duckdns.org/](https://agroreco.patarimi.duckdns.org/).
+You can view the dashboard at [https://webapp-982044430070.europe-west1.run.app/](https://webapp-982044430070.europe-west1.run.app/).
 
 ## Stack
 

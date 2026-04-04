@@ -118,7 +118,8 @@ jobs:
           gcloud run deploy api \
             --image europe-west1-docker.pkg.dev/reco-agricole/reco-agricole/api:${{ github.sha }} \
             --region europe-west1 --platform managed \
-            --allow-unauthenticated --port 8000 --memory 1024Mi
+            --allow-unauthenticated --port 8000 --memory 2048Mi \
+            --min-instances 1
 
       - name: Deploy webapp
         run: |
